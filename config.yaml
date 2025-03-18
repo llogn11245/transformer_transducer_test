@@ -1,0 +1,30 @@
+# === Cấu hình dữ liệu ===
+dataset_dir: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/voices"
+train_dataset: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/train.json"
+valid_dataset: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/dev.json"
+test_dataset: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/test.json"
+
+# === Tham số mô hình Transformer-Transducer ===
+input_dim: 80
+d_model: 256
+n_heads: 4
+ff_dim: 512
+enc_layers: 3
+pred_dim: 256
+pred_layers: 1
+joint_dim: 256
+dropout: 0.1
+vocab_size: 1000
+blank_idx: 0
+
+# === Cấu hình bộ chuyển đổi đặc trưng ===
+feature_extractor: "mel_spectrogram"  # Các lựa chọn: "mfcc", "mel_spectrogram", "spectrogram"
+
+# === Huấn luyện ===
+batch_size: 16
+epochs: 10
+learning_rate: 0.001
+optimizer: "adam"
+
+# === Kiểm tra lỗi ===
+error_rate_computer: "cer"
