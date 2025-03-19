@@ -1,8 +1,8 @@
 # === Cấu hình dữ liệu ===
-dataset_dir: "data/audio"
-train_dataset: "data/train_metadata.json"
-valid_dataset: "data/valid_metadata.json"
-test_dataset: "data/test_metadata.json"
+dataset_dir: "/content/voices"
+train_dataset: "/content/train.json"
+valid_dataset: "/content/dev.json"
+test_dataset: "/content/test.json"
 
 # === Cấu hình từ vựng ===
 vocab_path: "word2index.json"
@@ -28,9 +28,9 @@ n_fft: 400
 hop_length: 160
 
 # === Huấn luyện ===
-batch_size: 32
-epochs: 20
-learning_rate: 0.0005
+batch_size: 4
+epochs: 2
+learning_rate: 0.0001
 optimizer: "adamw"
 weight_decay: 0.01
 gradient_clip: 5.0
