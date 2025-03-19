@@ -12,7 +12,7 @@ def collate_fn(batch):
     features_padded = pad_sequence(features, batch_first=True, padding_value=0)
     tokens_padded = pad_sequence(tokens, batch_first=True, padding_value=0)
     tokens_bos_padded = pad_sequence(tokens_bos, batch_first=True, padding_value=0)
-    tokens_eos_padded = pad_sequence(tokens_eos, batch_first=True, padding_value=0)
+    tokens_eos_padded = pad_sequence(tokens_eos, batch_first=True, padding_value=-1)
 
     return {
         "features": features_padded,
