@@ -2,7 +2,7 @@ import json
 import torch
 import torchaudio
 from torch.utils.data import Dataset
-from feature_extractor import get_feature_extractor
+from dataset.feature_extractor import get_feature_extractor
 import re
 
 # Load từ vựng
@@ -20,7 +20,7 @@ class SpeechDataset(Dataset):
             raw_data = json.load(f)
 
         self.data = [
-            {"audio_filepath": f"data/audio/{v['voice']}", "text": v["script"]}
+            {"audio_filepath": f"/content/voices/{v['voice']}", "text": v["script"]}
             for v in raw_data.values() if "script" in v and "voice" in v
         ]
 
