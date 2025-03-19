@@ -2,14 +2,14 @@ import json
 import torch
 import yaml
 import torchaudio
-from dataset import SpeechDataset
-from collate_fn import collate_fn
-from transformer_transducer import TransformerTransducer
+from dataset.dataset import SpeechDataset
+from dataset.collate_fn import collate_fn
+from models.transformer_transducer import TransformerTransducer
 from torch.utils.data import DataLoader
 from jiwer import wer, cer
 
 # Load config.yaml
-with open("config.yaml", "r", encoding="utf-8") as f:
+with open("/content/transformer_transducer_test/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
 # Load số lượng từ vựng từ vocab
@@ -33,7 +33,7 @@ model = TransformerTransducer(
     n_heads=config["n_heads"],
     ff_dim=config["ff_dim"], 
     enc_layers=config["enc_layers"],
-    pred_embed_dim=config["pred_embed_dim"],
+    pred_embed_dim=config["pred_embed_dim"],  # Sửa lại đúng tên tham số
     pred_hidden_dim=config["pred_hidden_dim"],
     pred_layers=config["pred_layers"],
     joint_dim=config["joint_dim"],
@@ -41,7 +41,7 @@ model = TransformerTransducer(
     blank_idx=config["blank_idx"]
 )
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 model.to(device)
 
 criterion = torchaudio.transforms.RNNTLoss(blank=config["blank_idx"])
@@ -62,9 +62,26 @@ for epoch in range(config["epochs"]):
             batch["feat_length"].to(device),
             batch["target_length"].to(device),
         )
-
+        
         optimizer.zero_grad()
-        logits = model(features, tokens_bos)
+        logits = model(features, feat_lengths, tokens_eos)  # Truyền tokens_eos (target_sequence) vào đây
+        
+        target_lengths = torch.minimum(target_lengths, torch.tensor(tokens_eos.shape[1], device=target_lengths.device))
+        feat_lengths = torch.minimum(feat_lengths, torch.tensor(logits.shape[1], device=feat_lengths.device))
+
+        # Kiểm tra kích thước của logits
+        print("Logits shape:", logits.shape)
+        print("Tokens EOS shape:", tokens_eos.shape)
+        print("Feat lengths:", feat_lengths)
+        print("Target lengths:", target_lengths)
+
+        
+        # Chuyển đổi tokens_eos và feat_lengths sang kiểu int32
+        tokens_eos = tokens_eos.to(torch.int32)
+        feat_lengths = feat_lengths.to(torch.int32)
+        target_lengths = target_lengths.to(torch.int32)
+        
+        # Tính loss
         loss = criterion(logits, tokens_eos, feat_lengths, target_lengths)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), config["gradient_clip"])
