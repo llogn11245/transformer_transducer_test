@@ -1,30 +1,40 @@
 # === Cấu hình dữ liệu ===
-dataset_dir: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/voices"
-train_dataset: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/train.json"
-valid_dataset: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/dev.json"
-test_dataset: "/raw_data/Vietnamese-Speech-to-Text-datasets/Common-Voice/test.json"
+dataset_dir: "data/audio"
+train_dataset: "data/train_metadata.json"
+valid_dataset: "data/valid_metadata.json"
+test_dataset: "data/test_metadata.json"
+
+# === Cấu hình từ vựng ===
+vocab_path: "word2index.json"
 
 # === Tham số mô hình Transformer-Transducer ===
 input_dim: 80
 d_model: 256
-n_heads: 4
-ff_dim: 512
-enc_layers: 3
-pred_dim: 256
-pred_layers: 1
+n_heads: 8
+ff_dim: 1024
+enc_layers: 6
+pred_embed_dim: 256
+pred_hidden_dim: 512
+pred_layers: 2
 joint_dim: 256
-dropout: 0.1
-vocab_size: 1000
+dropout: 0.15
 blank_idx: 0
 
-# === Cấu hình bộ chuyển đổi đặc trưng ===
-feature_extractor: "mel_spectrogram"  # Các lựa chọn: "mfcc", "mel_spectrogram", "spectrogram"
+# === Cấu hình bộ trích xuất đặc trưng ===
+feature_extractor: "mel_spectrogram"
+sample_rate: 16000
+n_mels: 80
+n_fft: 400
+hop_length: 160
 
 # === Huấn luyện ===
-batch_size: 16
-epochs: 10
-learning_rate: 0.001
-optimizer: "adam"
+batch_size: 32
+epochs: 20
+learning_rate: 0.0005
+optimizer: "adamw"
+weight_decay: 0.01
+gradient_clip: 5.0
 
 # === Kiểm tra lỗi ===
-error_rate_computer: "cer"
+error_rate_computer: "wer"
+log_interval: 50
