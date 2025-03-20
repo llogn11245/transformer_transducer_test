@@ -1,0 +1,135 @@
+import os
+import yaml
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from dataset import SpeechDataset, create_vocab_from_data, collate_fn
+from model_builder import build_transformer_transducer
+# Sử dụng hàm loss cho RNNT (cần cài đặt warp-transducer hoặc dùng torchaudio)
+try:
+    from torchaudio.functional import rnnt_loss  # warp-transducer loss
+    rnnt_criterion = rnnt_loss(blank=0)     # blank=0 (sử dụng id 0 cho ký tự blank/pad)
+except ImportError:
+    import torchaudio
+    rnnt_criterion = lambda log_probs, targets, in_len, tgt_len: torchaudio.functional.rnnt_loss(
+        log_probs, targets, in_len, tgt_len, blank=0, reduction='mean'
+    )
+
+def main():
+    # Đọc file cấu hình
+    with open("config.yaml", 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    batch_size = config["batch_size"]
+    num_epochs = config["num_epochs"]
+    learning_rate = config["learning_rate"]
+    use_finetune = config.get("use_finetune", False)
+    sample_rate = config.get("sample_rate", 16000)
+    use_subword = config.get("use_subword", False)
+    vocab_path = config["vocab_path"]
+    train_json = config["train_json"]
+    dev_json = config["dev_json"]
+    test_json = config["test_json"]
+    wav_folder = config["wav_folder"]
+    
+    # Tạo vocab nếu chưa tồn tại
+    if not os.path.exists(vocab_path):
+        vocab = create_vocab_from_data(train_json, vocab_path, use_subword)
+    else:
+        # Đọc vocab từ file
+        with open(vocab_path, 'r', encoding='utf-8') as vf:
+            vocab = [line.strip() for line in vf]
+    num_vocabs = len(vocab)
+    
+    # Tạo Dataset và DataLoader cho train, dev, test
+    train_dataset = SpeechDataset(train_json, wav_folder, vocab, sample_rate, use_subword)
+    dev_dataset = SpeechDataset(dev_json, wav_folder, vocab, sample_rate, use_subword)
+    test_dataset = SpeechDataset(test_json, wav_folder, vocab, sample_rate, use_subword)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, drop_last=True)
+    dev_loader = DataLoader(dev_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    # (Có thể không cần DataLoader cho test trong train.py, sẽ dùng riêng khi evaluate)
+    
+    # Thiết lập thiết bị (GPU nếu có)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Khởi tạo mô hình Transformer-Transducer
+    model = build_transformer_transducer(
+        device=device, num_vocabs=num_vocabs, input_size=train_dataset.n_mels
+    )
+    model.to(device)
+    
+    # Nếu fine-tuning, tải trọng số mô hình đã được huấn luyện trước đó
+    if use_finetune:
+        if os.path.exists("pretrained_model.pth"):
+            checkpoint = torch.load("pretrained_model.pth", map_location=device)
+            model.load_state_dict(checkpoint["model_state_dict"])
+            print("Loaded pretrained model weights for fine-tuning.")
+        # (Có thể freeze một số tầng hoặc giảm learning rate nếu cần tùy chỉnh fine-tune)
+    
+    # Cấu hình optimizer 
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    best_val_loss = float('inf')
+    
+    # Vòng lặp huấn luyện qua từng epoch
+    for epoch in range(1, num_epochs + 1):
+        model.train()
+        total_loss = 0.0
+        for batch_idx, (inputs, input_lens, targets, target_lens) in enumerate(train_loader, start=1):
+            inputs = inputs.to(device)
+            input_lens = input_lens.to(device)
+            targets = targets.to(device)
+            target_lens = target_lens.to(device)
+            
+            optimizer.zero_grad()
+            # Forward: đưa qua mô hình để lấy log-prob dự đoán
+            log_probs = model(inputs, input_lens, targets, target_lens)
+            # Tính loss RNNT (loại bỏ token <sos> ở đầu các chuỗi target trước khi tính)
+            loss = rnnt_criterion(log_probs, targets[:, 1:], input_lens, target_lens - 1)
+            loss_value = loss.item()
+            total_loss += loss_value
+            # Backpropagation
+            loss.backward()
+            # Cắt gradient để tránh gradient bùng nổ (nếu cần)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+            optimizer.step()
+            
+            if batch_idx % 100 == 0:
+                print(f"Epoch {epoch} - Batch {batch_idx}: Loss = {loss_value:.4f}")
+        
+        avg_loss = total_loss / len(train_loader)
+        print(f"[Epoch {epoch}] Training loss: {avg_loss:.4f}")
+        
+        # Đánh giá trên tập dev (tính loss trung bình)
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for inputs, input_lens, targets, target_lens in dev_loader:
+                inputs = inputs.to(device)
+                input_lens = input_lens.to(device)
+                targets = targets.to(device)
+                target_lens = target_lens.to(device)
+                # Forward trên tập dev
+                log_probs = model(inputs, input_lens, targets, target_lens)
+                loss = rnnt_criterion(log_probs, targets[:, 1:], input_lens, target_lens - 1)
+                val_loss += loss.item()
+        val_loss /= len(dev_loader)
+        print(f"[Epoch {epoch}] Validation loss: {val_loss:.4f}")
+        
+        # Lưu mô hình nếu cải thiện (loss giảm)
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save({
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "epoch": epoch
+            }, "best_model.pth")
+            print(f"*** Saved best model (epoch {epoch}, val_loss={val_loss:.4f}) ***")
+        # Luôn lưu checkpoint mới nhất để có thể resume sau nếu cần
+        torch.save({
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "epoch": epoch
+        }, "last_checkpoint.pth")
+    
+    print("Huấn luyện hoàn tất!")
+    
+if __name__ == "__main__":
+    main()
