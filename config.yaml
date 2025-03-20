@@ -4,7 +4,7 @@ learning_rate: 0.0001      # Tốc độ học (learning rate)
 use_finetune: false       # Có sử dụng fine-tuning từ mô hình có sẵn không  
 sample_rate: 16000        # Tần số lấy mẫu audio (Hz)  
 use_subword: false        # True nếu dùng subword token, False nếu dùng ký tự  
-vocab_path: "vocab.txt"   # Đường dẫn tới file vocabulary (sẽ tạo nếu chưa có)  
+vocab_path: "vocab.json"   # Đường dẫn tới file vocabulary (sẽ tạo nếu chưa có)  
 train_json: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\newdata\\train.json"   # Đường dẫn file JSON chứa danh sách dữ liệu train  
 dev_json: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\newdata\\dev.json"       # Đường dẫn file JSON chứa danh sách dữ liệu dev  
 test_json: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\newdata\\test.json"     # Đường dẫn file JSON chứa danh sách dữ liệu test  

@@ -1,6 +1,8 @@
 import os
 import yaml
 import torch
+import json
+import torchaudio
 from torch import nn
 from torch.utils.data import DataLoader
 from dataset import SpeechDataset, create_vocab_from_data, collate_fn
@@ -8,7 +10,6 @@ from model_builder import build_transformer_transducer
 # Sử dụng hàm loss cho RNNT (cần cài đặt warp-transducer hoặc dùng torchaudio)
 try:
     from torchaudio.functional import rnnt_loss  # warp-transducer loss
-    rnnt_criterion = rnnt_loss(blank=0)     # blank=0 (sử dụng id 0 cho ký tự blank/pad)
 except ImportError:
     import torchaudio
     rnnt_criterion = lambda log_probs, targets, in_len, tgt_len: torchaudio.functional.rnnt_loss(
@@ -17,7 +18,7 @@ except ImportError:
 
 def main():
     # Đọc file cấu hình
-    with open("config.yaml", 'r', encoding='utf-8') as f:
+    with open("/content/transformer_transducer_test/config.yaml", 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     batch_size = config["batch_size"]
     num_epochs = config["num_epochs"]
@@ -31,15 +32,17 @@ def main():
     test_json = config["test_json"]
     wav_folder = config["wav_folder"]
     
-    # Tạo vocab nếu chưa tồn tại
     if not os.path.exists(vocab_path):
         vocab = create_vocab_from_data(train_json, vocab_path, use_subword)
+        num_vocabs = len(vocab)  # Số lượng từ vựng là độ dài từ điển
+        vocab = list(vocab.keys())  # Lấy danh sách các từ từ từ điển
     else:
-        # Đọc vocab từ file
+        # Đọc vocab từ file JSON
         with open(vocab_path, 'r', encoding='utf-8') as vf:
-            vocab = [line.strip() for line in vf]
-    num_vocabs = len(vocab)
-    
+            vocab_dict = json.load(vf)
+            num_vocabs = len(vocab_dict)  # Số lượng từ vựng là độ dài từ điển
+            vocab = list(vocab_dict.keys())  # Lấy danh sách các từ từ từ điển
+
     # Tạo Dataset và DataLoader cho train, dev, test
     train_dataset = SpeechDataset(train_json, wav_folder, vocab, sample_rate, use_subword)
     dev_dataset = SpeechDataset(dev_json, wav_folder, vocab, sample_rate, use_subword)
@@ -81,12 +84,23 @@ def main():
             optimizer.zero_grad()
             # Forward: đưa qua mô hình để lấy log-prob dự đoán
             log_probs = model(inputs, input_lens, targets, target_lens)
+
             # Tính loss RNNT (loại bỏ token <sos> ở đầu các chuỗi target trước khi tính)
-            loss = rnnt_criterion(log_probs, targets[:, 1:], input_lens, target_lens - 1)
+            loss = torchaudio.functional.rnnt_loss(
+                            logits=log_probs,
+                            targets=targets[:, 1:-1].to(torch.int32).contiguous(),
+                            logit_lengths=input_lens.to(torch.int32),
+                            target_lengths=(target_lens - 2).to(torch.int32),
+                            blank=0,
+                            reduction='mean'
+                        )
+
             loss_value = loss.item()
             total_loss += loss_value
+
             # Backpropagation
             loss.backward()
+            
             # Cắt gradient để tránh gradient bùng nổ (nếu cần)
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
@@ -108,7 +122,15 @@ def main():
                 target_lens = target_lens.to(device)
                 # Forward trên tập dev
                 log_probs = model(inputs, input_lens, targets, target_lens)
-                loss = rnnt_criterion(log_probs, targets[:, 1:], input_lens, target_lens - 1)
+                # loss = rnnt_criterion(log_probs, targets[:, 1:], input_lens, target_lens - 1)
+                loss = torchaudio.functional.rnnt_loss(
+                            logits=log_probs,
+                            targets=targets[:, 1:-1].to(torch.int32).contiguous(),
+                            logit_lengths=input_lens.to(torch.int32),
+                            target_lengths=(target_lens - 2).to(torch.int32),
+                            blank=0,
+                            reduction='mean'
+                        )
                 val_loss += loss.item()
         val_loss /= len(dev_loader)
         print(f"[Epoch {epoch}] Validation loss: {val_loss:.4f}")

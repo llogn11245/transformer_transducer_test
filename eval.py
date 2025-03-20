@@ -1,7 +1,7 @@
 import yaml
 import torch
-from dataset import SpeechDataset, collate_fn
-from model_builder import build_transformer_transducer
+from .dataset import SpeechDataset, collate_fn
+from .model_builder import build_transformer_transducer
 
 # Sử dụng thư viện jiwer để tính WER/CER
 try:
