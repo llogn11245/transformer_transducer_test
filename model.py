@@ -1,6 +1,6 @@
 from torch import Tensor
-from .audio_encoder import AudioEncoder
-from .label_encoder import LabelEncoder
+from audio_encoder import AudioEncoder
+from label_encoder import LabelEncoder
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

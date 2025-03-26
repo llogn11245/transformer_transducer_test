@@ -1,8 +1,8 @@
 from typing import Tuple
 from torch import Tensor
-from .mask import get_attn_pad_mask
-from .module import PositionalEncoding
-from .layer import EncoderLayer
+from mask import get_attn_pad_mask
+from module import PositionalEncoding
+from layer import EncoderLayer
 import torch
 import torch.nn as nn
 import numpy as np

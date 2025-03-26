@@ -1,6 +1,6 @@
-from .audio_encoder import AudioEncoder
-from .label_encoder import LabelEncoder
-from .model import TransformerTransducer
+from audio_encoder import AudioEncoder
+from label_encoder import LabelEncoder
+from model import TransformerTransducer
 import torch
 
 

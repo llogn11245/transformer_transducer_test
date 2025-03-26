@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 from torch import Tensor
-from .attention import MultiHeadAttention
-from .module import PositionWiseFeedForward
+from attention import MultiHeadAttention
+from module import PositionWiseFeedForward
 import torch.nn as nn
 
 
