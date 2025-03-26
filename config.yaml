@@ -1,7 +1,6 @@
 batch_size: 32            # Kích thước mỗi batch huấn luyện  
 num_epochs: 10            # Số lượng epoch huấn luyện  
 learning_rate: 0.0001      # Tốc độ học (learning rate)  
-use_finetune: false       # Có sử dụng fine-tuning từ mô hình có sẵn không  
 sample_rate: 16000        # Tần số lấy mẫu audio (Hz)  
 use_subword: false        # True nếu dùng subword token, False nếu dùng ký tự  
 vocab_path: "vocab.json"   # Đường dẫn tới file vocabulary (sẽ tạo nếu chưa có)  
