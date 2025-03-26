@@ -151,7 +151,7 @@ def main():
             "epoch": epoch
         }, "last_checkpoint.pth")
     
-    print("Huấn luyện hoàn tất!")
+    print("**************** Huấn luyện hoàn tất! ****************")
     
 if __name__ == "__main__":
     main()

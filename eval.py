@@ -32,6 +32,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_transformer_transducer(device=device, num_vocabs=num_vocabs, input_size=test_dataset.n_mels)
     model.to(device)
+    
     # Load trọng số mô hình đã huấn luyện (checkpoint tốt nhất)
     checkpoint = torch.load("best_model.pth", map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
