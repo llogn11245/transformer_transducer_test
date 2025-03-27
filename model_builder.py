@@ -16,8 +16,8 @@ def build_transformer_transducer(
         dropout: float = 0.3,
         max_len: int = 5000,
         pad_id: int = 0,
-        sos_id: int = 1,
-        eos_id: int = 2,
+        sos_id: int = 4,
+        eos_id: int = 3,
 ) -> TransformerTransducer:
     encoder = build_audio_encoder(
         device,

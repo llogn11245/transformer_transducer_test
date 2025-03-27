@@ -129,30 +129,30 @@ class JointNet(nn.Module):
         self.tanh = nn.Tanh()
         self.fc2 = nn.Linear(inner_size, num_vocabs)
 
-    # def forward(
-    #         self,
-    #         audio_encoder: Tensor,
-    #         label_encoder: Tensor,
-    # ) -> Tensor:
-    #     if audio_encoder.dim() == 3 and label_encoder.dim() == 3:  # Train
-    #         seq_lens = audio_encoder.size(1)
-    #         target_lens = label_encoder.size(1)
+    def forward(
+            self,
+            audio_encoder: Tensor,
+            label_encoder: Tensor,
+    ) -> Tensor:
+        if audio_encoder.dim() == 3 and label_encoder.dim() == 3:  # Train
+            seq_lens = audio_encoder.size(1)
+            target_lens = label_encoder.size(1)
 
-    #         audio_encoder = audio_encoder.unsqueeze(2)
-    #         label_encoder = label_encoder.unsqueeze(1)
+            audio_encoder = audio_encoder.unsqueeze(2)
+            label_encoder = label_encoder.unsqueeze(1)
 
-    #         audio_encoder = audio_encoder.repeat(1, 1, target_lens, 1)
-    #         label_encoder = label_encoder.repeat(1, seq_lens, 1, 1)
+            audio_encoder = audio_encoder.repeat(1, 1, target_lens, 1)
+            label_encoder = label_encoder.repeat(1, seq_lens, 1, 1)
 
-    #     output = torch.cat((audio_encoder, label_encoder), dim=-1)
+        output = torch.cat((audio_encoder, label_encoder), dim=-1)
 
-    #     output = self.fc1(output)
-    #     output = self.tanh(output)
-    #     output = self.fc2(output)
+        output = self.fc1(output)
+        output = self.tanh(output)
+        output = self.fc2(output)
 
-    #     output = F.log_softmax(output, dim=-1)
+        output = F.log_softmax(output, dim=-1)
 
-    #     return output
+        return output
     def forward(self, 
                 enc, 
                 dec
