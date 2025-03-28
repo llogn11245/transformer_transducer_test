@@ -43,6 +43,7 @@ def create_vocab_file(text_list, file_path: str):
                     file.write(word + "\n")
 
         file.write("<unk>\n")
+        file.write("<blank>\n")
     
     print(f"Vocab đã được lưu tại: {file_path}")
     return file_path

@@ -38,6 +38,7 @@ def main():
     if os.path.exists(vocab_path):
         print(f"File vocab và các file w2i, i2w tồn tại!")
         w2i_dir = os.path.join(vocab_folder, 'word2index.json')
+        i2w_dir = os.path.join(vocab_folder, 'index2word.json')
     else:
         print("Tiến hành tạo file vocab, w2i, i2w!") 
         data_file_list = [train_json, dev_json]
@@ -48,6 +49,11 @@ def main():
     with open(w2i_dir, 'r', encoding="utf-8") as w2i: 
         content_w2i = json.load(w2i)
         num_vocabs = len(content_w2i)
+        blank_id = content_w2i.get("<blank>", None)
+
+    with open(i2w_dir, 'r', encoding="utf-8") as w2i: 
+        index2word = json.load(w2i)
+
 
     # Tạo Dataset và DataLoader cho train, dev, test
     train_dataset = SpeechDataset(
@@ -122,7 +128,8 @@ def main():
                             targets=targets[:, 1:-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
                             target_lengths=(target_lens - 2).to(torch.int32),
-                            reduction='mean'
+                            reduction='mean', 
+                            blank=blank_id
                         )
 
             loss_value = loss.item()
@@ -186,6 +193,24 @@ def main():
         }, "last_checkpoint.pth")
     
     print("**************** Huấn luyện hoàn tất! ****************")
+    print("**************** Starting prediction... ****************")
+
+    # Dự đoán sau huấn luyện
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, (inputs, input_lens, targets, target_lens) in enumerate(train_loader, start=1):
+            inputs = inputs.to(device)
+            input_lens = input_lens.to(device)
+            logits = model.recognize(inputs, input_lens)
+            predictions = torch.argmax(logits, dim=-1)
+
+            # Hiển thị dự đoán cho một vài mẫu
+            for i in range(min(5, len(predictions))):
+                pred_seq = predictions[i].cpu().tolist()
+                pred_text = " ".join([index2word[str(t)] for t in pred_seq if str(t) in index2word])
+                print(f"Predicted: {pred_text}")
+
+    print("**************** Prediction complete! ****************")
     
 if __name__ == "__main__":
     main()
