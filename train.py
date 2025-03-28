@@ -89,7 +89,7 @@ def main():
                               )
 
             # print(f"\nLogits: {log_probs}\n")
-            print("===================")
+            # print("===================")
             # print(f"\nLogits shape: {log_probs.shape}")
             # print(f"\nTargets shape: {targets.contiguous().shape}")
             # print(f"\nTargets: {targets.to(torch.int32).contiguous()}")
