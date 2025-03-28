@@ -33,7 +33,7 @@ def main():
     wav_folder = config["wav_folder"]
     
     if not os.path.exists(vocab_path):
-        vocab = create_vocab_from_data(train_json, vocab_path, use_subword)
+        vocab = create_vocab_from_data(train_json, dev_json, vocab_path, use_subword)
         num_vocabs = len(vocab)  # Số lượng từ vựng là độ dài từ điển
         vocab = list(vocab.keys())  # Lấy danh sách các từ từ từ điển
     else:
