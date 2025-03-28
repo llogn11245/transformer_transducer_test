@@ -1,0 +1,10 @@
+batch_size: 1            # Kích thước mỗi batch huấn luyện  
+num_epochs: 10            # Số lượng epoch huấn luyện  
+learning_rate: 0.0001      # Tốc độ học (learning rate)  
+sample_rate: 16000        # Tần số lấy mẫu audio (Hz)  
+use_subword: True        # True nếu dùng subword token, False nếu dùng ký tự  
+vocab_path: "C:\\paper\\T-T\\vocab.json"   # Đường dẫn tới file vocabulary (sẽ tạo nếu chưa có)  
+train_json: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\newdata\\processed_train.json"   # Đường dẫn file JSON chứa danh sách dữ liệu train  
+dev_json: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\newdata\\processed_dev.json"       # Đường dẫn file JSON chứa danh sách dữ liệu dev  
+test_json: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\newdata\\processed_test.json"     # Đường dẫn file JSON chứa danh sách dữ liệu test  
+wav_folder: "C:\\paper\\raw_data\\Vietnamese-Speech-to-Text-datasets\\Common-Voice\\voices"          # Thư mục chứa các file âm thanh (.wav/.mp3)  
