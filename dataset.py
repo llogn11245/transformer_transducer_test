@@ -6,85 +6,17 @@ import librosa
 import numpy as np
 from torch.utils.data import Dataset
 from collections import Counter
-
-def estimate_vocab_size(texts):
-    all_text = "\n".join(texts)
-    counter = Counter(all_text)
-    # Trả về số lượng ký tự duy nhất + các token đặc biệt
-    return min(len(counter) + 10, 8000)
-
-def create_vocab_from_data(train_json, dev_json, vocab_path, use_subword=False):
-    """
-    Tạo file vocabulary từ dữ liệu huấn luyện nếu chưa tồn tại.
-    Với use_subword=True, huấn luyện mô hình SentencePiece để tạo subword vocab.
-    Với use_subword=False, tạo vocab gồm các ký tự duy nhất trong tập huấn luyện.
-    """
-    with open(train_json, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    with open(dev_json, 'r', encoding='utf-8') as f:
-        dev_data = json.load(f)
-    # Thu thập tất cả transcript từ file train_json
-    texts = [entry["processed_script"] for entry in data.values()] + [entry["script"] for entry in dev_data.values()]
-    
-    if use_subword:
-        # Sử dụng thư viện SentencePiece để tạo vocab subword
-        import sentencepiece as spm
-
-        # Ghi toàn bộ transcript ra file tạm để huấn luyện SentencePiece
-        with open("all_text.txt", "w", encoding='utf-8') as fw:
-            for t in texts:
-                fw.write(t + "\n")
-
-        vocab_size = estimate_vocab_size(texts)
-        print(f"Vocab size được ước tính là: {vocab_size}")
-
-        # Huấn luyện SentencePiece (vocab_size có thể điều chỉnh tùy bài toán)
-        spm.SentencePieceTrainer.train(input='all_text.txt', 
-                                       model_prefix='spm', 
-                                       character_coverage=1.0,
-                                       vocab_size=vocab_size
-                                       )
-        # Đọc vocab từ file spm.vocab do SentencePiece tạo ra
-        with open('spm.vocab', 'r', encoding='utf-8') as vf:
-            spm_vocab = [line.split('\t')[0] for line in vf]  # token nằm ở cột đầu
-        # Thêm các token đặc biệt vào đầu danh sách vocab
-        vocab_list = ['<pad>', '<sos>', '<eos>'] + spm_vocab
-    else:
-        # Tạo tập ký tự duy nhất từ toàn bộ transcript
-        all_text = "\n".join(texts)
-        chars = sorted(set(all_text))
-
-        # # Loại bỏ các ký tự không hợp lệ và đảm bảo thêm đúng khoảng trắng
-        # chars = [ch for ch in chars if ch.strip() or ch == ' ']
-
-        # # Đảm bảo rằng khoảng trắng (' ') được thêm vào vocab nếu chưa có
-        # if ' ' not in chars:
-        #     chars.append(' ')
-        # chars = sorted(chars)
-
-        # Thêm token đặc biệt (pad, sos, eos) vào đầu danh sách
-        vocab_list = ['<pad>', '<sos>', '<eos>'] + chars
-
-    # Tạo từ điển vocab: {token: index}
-    vocab_dict = {token: idx for idx, token in enumerate(vocab_list)}
-
-    # Ghi vocab_dict ra file JSON
-    with open(vocab_path, 'w', encoding='utf-8') as f:
-        json.dump(vocab_dict, f, ensure_ascii=False, indent=4)
-    
-    print(f"Vocab đã được tạo và lưu tại {vocab_path}")
-    return vocab_dict
+from speechbrain.lobes.features import MFCC, Fbank
+import torchaudio.transforms as T
 
 class SpeechDataset(Dataset):
     """
     Dataset cho tác vụ ASR Transformer-Transducer.
     Mỗi phần tử gồm đặc trưng mel-spectrogram của âm thanh và chuỗi ký tự (đã mã hóa số) tương ứng.
     """
-    def __init__(self, json_path, wav_folder, vocab, sample_rate=16000, use_subword=False):
+    def __init__(self, json_path, wav_folder, vocab_path, sample_rate=16000, transform_name="melspectrogram"):
         super(SpeechDataset, self).__init__()
         self.sample_rate = sample_rate
-        self.use_subword = use_subword
 
         # Đọc file JSON để lấy danh sách audio và transcript
         with open(json_path, 'r', encoding='utf-8') as f:
@@ -97,23 +29,24 @@ class SpeechDataset(Dataset):
             transcript = entry["processed_script"]
             self.samples.append((audio_file, transcript))
 
-        # Thiết lập vocabulary và từ điển ánh xạ token->index
-        self.vocab = vocab
-        self.vocab_dict = {token: idx for idx, token in enumerate(vocab)}
+        # Đọc vocab từ file word2index
+        with open(vocab_path, 'r', encoding='utf-8') as vf:
+            self.vocab_dict = json.load(vf)
+        
+        # Lấy danh sách các từ (từ khóa của vocab_dict)
+        self.vocab = list(self.vocab_dict.keys())
 
-        # Nếu dùng subword, load mô hình SentencePiece để encode transcript
-        if use_subword:
-            import sentencepiece as spm
-            self.sp = spm.SentencePieceProcessor()
-            self.sp.load('spm.model')  # mô hình SentencePiece đã được huấn luyện ở bước tạo vocab
+        # Lấy chỉ số của token <unk>
+        self.unk_id = self.vocab_dict.get('<unk>', 0)
 
-        # Thiết lập bộ biến đổi mel-spectrogram
-        self.n_mels = 80  # số mel filter-bank
+        self.n_mels = 80
+
+        # Thiết lập bộ biến đổi âm thanh dựa trên tên
         self.mel_transform = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=self.n_mels)
-    
+
     def __len__(self):
         return len(self.samples)
-    
+
     def __getitem__(self, idx):
         audio_path, text = self.samples[idx]
 
@@ -135,22 +68,19 @@ class SpeechDataset(Dataset):
         mel_spec = (mel_spec - mel_spec.mean()) / (mel_spec.std() + 1e-10)
 
         # Mã hóa transcript thành chuỗi chỉ số
-        if self.use_subword:
-            # Sử dụng mô hình SentencePiece để tách câu thành các token subword
-            tokens = self.sp.encode_as_pieces(text.strip())
-            indices = [self.vocab_dict.get(token, self.vocab_dict.get('<unk>', 0)) for token in tokens]
-        else:
-            # Với ký tự, bao gồm cả khoảng trắng như một ký tự
-            indices = [self.vocab_dict[ch] for ch in text]
+        words = text.strip().split(" ")
+        
+        indices = [self.vocab_dict.get(word, self.unk_id) for word in words]
 
         # Thêm ký hiệu bắt đầu và kết thúc câu
-        sos_id = self.vocab_dict.get('<sos>')
-        eos_id = self.vocab_dict.get('<eos>')
+        sos_id = self.vocab_dict.get('<sos>', 1)
+        eos_id = self.vocab_dict.get('<eos>', 2)
 
         if sos_id is not None:
             indices = [sos_id] + indices
         if eos_id is not None:
             indices = indices + [eos_id]
+        
         target_tensor = torch.LongTensor(indices)
 
         return mel_spec, target_tensor
@@ -184,6 +114,7 @@ def collate_fn(batch):
     max_tgt_len = max([len(t) for t in targets])
     target_tensor = torch.zeros((batch_size, max_tgt_len), dtype=torch.int32)  # Sửa kiểu int32
     target_lengths = torch.zeros((batch_size), dtype=torch.int32)
+
     for i, tgt in enumerate(targets):
         tgt_len = len(tgt)
         target_tensor[i, :tgt_len] = torch.tensor(tgt, dtype=torch.int32)
