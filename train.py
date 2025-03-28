@@ -194,21 +194,59 @@ def main():
     
     print("**************** Huấn luyện hoàn tất! ****************")
     print("**************** Starting prediction... ****************")
+    
+    checkpoint = torch.load("best_model.pth")
+    num_vocabs = len(index2word)
 
-    # Dự đoán sau huấn luyện
+    # Khởi tạo mô hình
+    model = build_transformer_transducer(device=device, num_vocabs=num_vocabs)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.to(device)
     model.eval()
+
+    print("Bắt đầu dự đoán trên tập huấn luyện...")
+
+    # Vòng lặp dự đoán
+    predictions = []
+    ground_truths = []
+
     with torch.no_grad():
-        for batch_idx, (inputs, input_lens, targets, target_lens) in enumerate(train_loader, start=1):
+        for batch_idx, (inputs, input_lens, targets, target_lens) in enumerate(train_loader):
+            # Đưa dữ liệu lên GPU nếu có
             inputs = inputs.to(device)
             input_lens = input_lens.to(device)
-            logits = model.recognize(inputs, input_lens)
-            predictions = torch.argmax(logits, dim=-1)
+            targets = targets.to(device)
+            target_lens = target_lens.to(device)
 
-            # Hiển thị dự đoán cho một vài mẫu
-            for i in range(min(5, len(predictions))):
-                pred_seq = predictions[i].cpu().tolist()
-                pred_text = " ".join([index2word[str(t)] for t in pred_seq if str(t) in index2word])
-                print(f"Predicted: {pred_text}")
+            # Dự đoán kết quả từ mô hình
+            y_hats = model.recognize(inputs, input_lens)
+
+            # Lưu lại kết quả dự đoán và nhãn thực tế
+            for pred, target in zip(y_hats, targets):
+                # Chuyển đổi chỉ số từ vựng thành văn bản
+                pred_sentence = [index2word[str(idx.item())] for idx in pred]
+                target_sentence = [index2word[str(idx.item())] for idx in target if idx.item() != 0]
+
+                predictions.append(" ".join(pred_sentence))
+                ground_truths.append(" ".join(target_sentence))
+
+            # In kết quả một vài batch để theo dõi
+            if batch_idx % 10 == 0:
+                print(f"Batch {batch_idx}:")
+                print(f"  Dự đoán: {' '.join(pred_sentence)}")
+                print(f"  Nhãn thực: {' '.join(target_sentence)}")
+                print()
+
+    print("Dự đoán hoàn tất!")
+
+    # Lưu kết quả vào file
+    # with open("train_predictions.txt", "w", encoding="utf-8") as f:
+    #     for pred, gt in zip(predictions, ground_truths):
+    #         f.write(f"Prediction: {pred}\n")
+    #         f.write(f"Ground Truth: {gt}\n")
+    #         f.write("\n")
+
+    # print("Kết quả dự đoán đã được lưu vào file train_predictions.txt")
 
     print("**************** Prediction complete! ****************")
     
