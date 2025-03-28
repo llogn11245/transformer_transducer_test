@@ -67,7 +67,7 @@ def main():
     dev_loader = DataLoader(dev_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     
     # Thiết lập thiết bị (GPU nếu có)
-    device = torch.device("cuda")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # Khởi tạo mô hình Transformer-Transducer
     model = build_transformer_transducer(
         device=device, 
