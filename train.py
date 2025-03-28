@@ -104,7 +104,6 @@ def main():
                             targets=targets[:, 1:-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
                             target_lengths=(target_lens - 2).to(torch.int32),
-                            blank=0,
                             reduction='mean'
                         )
 
@@ -141,7 +140,6 @@ def main():
                             targets=targets[:, 1:-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
                             target_lengths=(target_lens - 2).to(torch.int32),
-                            blank=0,
                             reduction='mean'
                         )
                 val_loss += loss.item()

@@ -13,7 +13,7 @@ def estimate_vocab_size(texts):
     # Trả về số lượng ký tự duy nhất + các token đặc biệt
     return min(len(counter) + 10, 8000)
 
-def create_vocab_from_data(train_json, vocab_path, use_subword=False):
+def create_vocab_from_data(train_json, dev_json, vocab_path, use_subword=False):
     """
     Tạo file vocabulary từ dữ liệu huấn luyện nếu chưa tồn tại.
     Với use_subword=True, huấn luyện mô hình SentencePiece để tạo subword vocab.
@@ -21,8 +21,11 @@ def create_vocab_from_data(train_json, vocab_path, use_subword=False):
     """
     with open(train_json, 'r', encoding='utf-8') as f:
         data = json.load(f)
+
+    with open(dev_json, 'r', encoding='utf-8') as f:
+        dev_data = json.load(f)
     # Thu thập tất cả transcript từ file train_json
-    texts = [entry["processed_script"] for entry in data.values()]
+    texts = [entry["processed_script"] for entry in data.values()] + [entry["script"] for entry in dev_data.values()]
     
     if use_subword:
         # Sử dụng thư viện SentencePiece để tạo vocab subword
@@ -46,7 +49,7 @@ def create_vocab_from_data(train_json, vocab_path, use_subword=False):
         with open('spm.vocab', 'r', encoding='utf-8') as vf:
             spm_vocab = [line.split('\t')[0] for line in vf]  # token nằm ở cột đầu
         # Thêm các token đặc biệt vào đầu danh sách vocab
-        vocab_list = ['<pad>', '<sos>', '<eos>', '<blank>'] + spm_vocab
+        vocab_list = ['<pad>', '<sos>', '<eos>'] + spm_vocab
     else:
         # Tạo tập ký tự duy nhất từ toàn bộ transcript
         all_text = "\n".join(texts)
@@ -61,7 +64,7 @@ def create_vocab_from_data(train_json, vocab_path, use_subword=False):
         # chars = sorted(chars)
 
         # Thêm token đặc biệt (pad, sos, eos) vào đầu danh sách
-        vocab_list = ['<pad>', '<sos>', '<eos>', '<blank>'] + chars
+        vocab_list = ['<pad>', '<sos>', '<eos>'] + chars
 
     # Tạo từ điển vocab: {token: index}
     vocab_dict = {token: idx for idx, token in enumerate(vocab_list)}
