@@ -18,6 +18,7 @@ def build_transformer_transducer(
         pad_id: int = 0,
         sos_id: int = 1,
         eos_id: int = 2,
+        blank_id: int = 0
 ) -> TransformerTransducer:
     encoder = build_audio_encoder(
         device,
@@ -42,7 +43,7 @@ def build_transformer_transducer(
         sos_id,
         eos_id,
     )
-    return TransformerTransducer(encoder, decoder, num_vocabs, model_dim << 1, model_dim).to(device)
+    return TransformerTransducer(encoder, decoder, num_vocabs, model_dim << 1, model_dim, blank_id=blank_id).to(device)
 
 
 def build_audio_encoder(

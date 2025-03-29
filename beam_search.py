@@ -65,6 +65,7 @@ class BeamSearchTransformerTransducer:
             ongoing_beams = [hyp]
 
             for t_step in range(max_length):
+                print(f"Đang xử lý bước {t_step}/{max_length} trong beam search")
                 process_hyps = ongoing_beams
                 ongoing_beams = list()
 

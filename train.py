@@ -21,7 +21,7 @@ except ImportError:
 
 def main():
     # Đọc file cấu hình
-    with open(r"C:\paper\T-T\config.yaml", 'r', encoding='utf-8') as f:
+    with open(r"/content/transformer_transducer_test/config.yaml", 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     batch_size = config["batch_size"]
     num_epochs = config["num_epochs"]
@@ -78,7 +78,8 @@ def main():
     model = build_transformer_transducer(
         device=device, 
         num_vocabs=num_vocabs,
-        input_size=80
+        input_size=80, 
+        blank_id=blank_id
     )
     model.to(device)
     
@@ -170,7 +171,8 @@ def main():
                             targets=targets[:, 1:-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
                             target_lengths=(target_lens - 2).to(torch.int32),
-                            reduction='mean'
+                            reduction='mean',
+                            blank=blank_id
                         )
                 val_loss += loss.item()
         val_loss /= len(dev_loader)
@@ -183,14 +185,14 @@ def main():
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "epoch": epoch
-            }, "best_model.pth")
+            }, "/content/transformer_transducer_test/best_model.pth")
             print(f"*** Saved best model (epoch {epoch}, val_loss={val_loss:.4f}) ***")
         # Luôn lưu checkpoint mới nhất để có thể resume sau nếu cần
         torch.save({
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "epoch": epoch
-        }, "last_checkpoint.pth")
+        }, "/content/transformer_transducer_test/last_checkpoint.pth")
     
     print("**************** Huấn luyện hoàn tất! ****************")
     print("**************** Starting prediction... ****************")
@@ -219,7 +221,8 @@ def main():
             target_lens = target_lens.to(device)
 
             # Dự đoán kết quả từ mô hình
-            y_hats = model.recognize(inputs, input_lens)
+            beam_size = 5  # Bạn có thể điều chỉnh beam_size tại đây
+            y_hats = model.recognize(inputs, input_lens, beam_size=beam_size)
 
             # Lưu lại kết quả dự đoán và nhãn thực tế
             for pred, target in zip(y_hats, targets):
