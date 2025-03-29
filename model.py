@@ -4,6 +4,7 @@ from label_encoder import LabelEncoder
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from beam_search import BeamSearchTransformerTransducer
 
 
 class TransformerTransducer(nn.Module):
@@ -73,32 +74,35 @@ class TransformerTransducer(nn.Module):
         return output
 
     @torch.no_grad()
-    def decode(self, audio_outputs: Tensor, max_lens: int) -> Tensor:
-        batch = audio_outputs.size(0)
-        y_hats = list()
-
-        targets = torch.LongTensor([self.label_encoder.sos_id] * batch)
-        if torch.cuda.is_available():
-            targets = targets.cuda()
-
-        for i in range(max_lens):
-            label_output = self.label_encoder(targets, None)
-            label_output = label_output.squeeze(1)
-            audio_output = audio_outputs[:, i, :]
-            output = self.joint(audio_output, label_output)
-            targets = output.max(1)[1]
-            y_hats.append(targets)
-
-        y_hats = torch.stack(y_hats, dim=1)
-
-        return y_hats  # (B, T)
+    def decode(self, audio_outputs: Tensor, max_lens: int, beam_size: int = 3) -> Tensor:
+        """
+        Thực hiện Beam Search decode trên output của audio_encoder.
+        Args:
+            audio_outputs (Tensor): Đầu ra của audio_encoder, shape (batch, T, feat_dim)
+            max_lens (int): Số bước thời gian (frame) tối đa để decode (thường = số frame của audio_outputs).
+            beam_size (int): Beam width cho beam search.
+        Returns:
+            y_hats (Tensor): Kết quả beam search (tensor chứa chuỗi token kết quả cho mỗi phần tử batch).
+        """
+        # Khởi tạo beam search decoder từ OpenSpeech
+        beam_search = BeamSearchTransformerTransducer(
+            joint=self.joint,
+            decoder=self.label_encoder,
+            beam_size=beam_size,
+            blank_id=self.blank_id  # ID của token <blank>
+        )
+        # Thực hiện beam search decoding
+        y_hats = beam_search(audio_outputs, max_lens)  # trả về Tensor (batch, U) chứa các token dự đoán
+        return y_hats
 
     @torch.no_grad()
-    def recognize(self, inputs: Tensor, inputs_lens: Tensor) -> Tensor:
-        audio_outputs = self.audio_encoder(inputs, inputs_lens)
-        max_lens = audio_outputs.size(1)
-
-        return self.decode(audio_outputs, max_lens)
+    def recognize(self, inputs: Tensor, inputs_lens: Tensor, beam_size: int = 3) -> Tensor:
+        """
+        Chạy audio_encoder rồi beam search để lấy kết quả nhận dạng.
+        """
+        audio_outputs = self.audio_encoder(inputs, inputs_lens)        # shape (batch, T, D)
+        max_lens = audio_outputs.size(1)  # số frame đầu ra encoder
+        return self.decode(audio_outputs, max_lens, beam_size=beam_size)
 
 
 class JointNet(nn.Module):

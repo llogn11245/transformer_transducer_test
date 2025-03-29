@@ -6,7 +6,7 @@ from layer import EncoderLayer
 import torch
 import torch.nn as nn
 import numpy as np
-
+import json
 
 class LabelEncoder(nn.Module):
     """
@@ -45,6 +45,7 @@ class LabelEncoder(nn.Module):
             pad_id: int = 0,
             sos_id: int = 1,
             eos_id: int = 2,
+            word2index = "C:\\paper\\T-T\\vocab_folder\\word2index.json"
     ) -> None:
         super(LabelEncoder, self).__init__()
         self.device = device
@@ -55,6 +56,12 @@ class LabelEncoder(nn.Module):
         self.pad_id = pad_id
         self.sos_id = sos_id
         self.eos_id = eos_id
+
+        with open(word2index, 'r', encoding='utf-8') as file:
+            self.word2index = json.load(file)
+            self.index2word = {v: k for k, v in self.word2index.items()}
+            
+        self.blank_id = self.word2index.get('<blank>', None)
         self.encoder_layers = nn.ModuleList(
             [EncoderLayer(model_dim, ff_dim, num_heads, dropout) for _ in range(num_layers)]
         )
@@ -102,3 +109,33 @@ class LabelEncoder(nn.Module):
             outputs, _ = encoder_layer(outputs, self_attn_mask)
         # print(f"\nLabel Enc shape: {outputs.shape}")
         return outputs
+    
+    def forward_step(self, inputs: Tensor, input_lengths: Tensor) -> Tensor:
+        """
+        Lấy biểu diễn ẩn cho một bước decode (một token) - phục vụ Beam Search.
+        Args:
+            inputs (torch.LongTensor): Tensor chứa token cuối cùng (shape (batch, 1)).
+            input_lengths (torch.LongTensor or None): Độ dài đầu vào (nếu không có, có thể đặt = 1).
+        Returns:
+            outputs (Tensor): Biểu diễn ẩn của token (shape (batch, 1, model_dim)).
+        """
+        # Đảm bảo inputs là kích thước [B, 1]
+        if inputs.dim() == 1:
+            # Nếu inputs dạng 1D, unsqueeze thành [B, 1]
+            inputs = inputs.unsqueeze(1)
+        # Xác định độ dài chuỗi đầu vào (nếu input_lengths không có hoặc bằng 0, đặt = 1)
+        if input_lengths is None or (isinstance(input_lengths, Tensor) and input_lengths.item() == 0):
+            target_lens = 1
+        else:
+            target_lens = int(input_lengths.item())  # độ dài = 1 cho bước hiện tại
+
+        # Tính embedding và positional encoding cho token
+        embedding_output = self.embedding(inputs.to(self.device)) * self.scale
+        positional_encoding_output = self.positional_encoding(target_lens)
+        outputs = self.input_dropout(embedding_output + positional_encoding_output)
+
+        # Qua các lớp encoder (self_attn_mask = None do chỉ có 1 token)
+        for encoder_layer in self.encoder_layers:
+            outputs, _ = encoder_layer(outputs, None)
+            
+        return outputs  # shape (batch, 1, model_dim)
