@@ -21,7 +21,7 @@ except ImportError:
 
 def main():
     # Đọc file cấu hình
-    with open(r"/content/transformer_transducer_test/config.yaml", 'r', encoding='utf-8') as f:
+    with open(r"config.yaml", 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     batch_size = config["batch_size"]
     num_epochs = config["num_epochs"]
@@ -222,7 +222,7 @@ def main():
 
             # Dự đoán kết quả từ mô hình
             beam_size = 5  # Bạn có thể điều chỉnh beam_size tại đây
-            y_hats = model.recognize(inputs, input_lens, beam_size=beam_size)
+            y_hats = model.recognize(inputs, input_lens)
 
             # Lưu lại kết quả dự đoán và nhãn thực tế
             for pred, target in zip(y_hats, targets):
@@ -243,13 +243,13 @@ def main():
     print("Dự đoán hoàn tất!")
 
     # Lưu kết quả vào file
-    # with open("train_predictions.txt", "w", encoding="utf-8") as f:
-    #     for pred, gt in zip(predictions, ground_truths):
-    #         f.write(f"Prediction: {pred}\n")
-    #         f.write(f"Ground Truth: {gt}\n")
-    #         f.write("\n")
+    with open("train_predictions.txt", "w", encoding="utf-8") as f:
+        for pred, gt in zip(predictions, ground_truths):
+            f.write(f"Prediction: {pred}\n")
+            f.write(f"Ground Truth: {gt}\n")
+            f.write("\n")
 
-    # print("Kết quả dự đoán đã được lưu vào file train_predictions.txt")
+    print("Kết quả dự đoán đã được lưu vào file train_predictions.txt")
 
     print("**************** Prediction complete! ****************")
     
