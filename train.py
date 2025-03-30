@@ -234,7 +234,7 @@ def main():
                 ground_truths.append(" ".join(target_sentence))
 
             # In kết quả một vài batch để theo dõi
-            if batch_idx % 10 == 0:
+            if batch_idx % 100 == 0:
                 print(f"Batch {batch_idx}:")
                 print(f"  Dự đoán: {' '.join(pred_sentence)}")
                 print(f"  Nhãn thực: {' '.join(target_sentence)}")
