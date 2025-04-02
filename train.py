@@ -105,7 +105,7 @@ def main():
             # print(f"\nTargets: {targets}")
             # print(f"\nTarget length shape: {target_lens.shape}")
             # print(f"\nTarget length: {target_lens}")
-            # # exit()
+            # exit()
             optimizer.zero_grad()
             # Forward: đưa qua mô hình để lấy log-prob dự đoán
             log_probs = model(inputs=inputs, 
@@ -114,19 +114,19 @@ def main():
                               targets_lens=target_lens
                               )
 
-            # print("===================")
-            # print(f"\nLogits shape: {log_probs.shape}")
-            # print(f"\nTargets shape: {targets[:, 1:].contiguous().shape}")
-            # print(f"\nTargets: {targets[:, 1:].to(torch.int32).contiguous()}")
-            # print(f"\nLogit Length (input length) shape: {input_lens.shape}")
-            # print(f"\nLogit Length (input length): {input_lens}")
-            # print(f"\nTarget length - 1: {target_lens-1}")
-            # print(f"\nTarget length shape: {target_lens.shape}")
+            print("===================")
+            print(f"\nLogits shape: {log_probs.shape}")
+            print(f"\nTargets shape: {targets[:, :-1].contiguous().shape}")
+            print(f"\nTargets: {targets[:, :-1].to(torch.int32).contiguous()}")
+            print(f"\nLogit Length (input length) shape: {input_lens.shape}")
+            print(f"\nLogit Length (input length): {input_lens}")
+            print(f"\nTarget length - 1: {target_lens - 1}")
+            print(f"\nTarget length shape: {target_lens.shape}")
             # exit()
             # Tính loss RNNT (loại bỏ token <sos> ở đầu các chuỗi target trước khi tính)
             loss = torchaudio.functional.rnnt_loss(
                             logits=log_probs,
-                            targets=targets[:, 1:].to(torch.int32).contiguous(),
+                            targets=targets[:, :-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
                             target_lengths=(target_lens - 1).to(torch.int32),
                             reduction='mean', 
