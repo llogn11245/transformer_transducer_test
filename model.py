@@ -92,11 +92,11 @@ class TransformerTransducer(nn.Module):
             audio_output = audio_outputs[:, i, :]  # (batch, model_dim)
             
             # Tính log-prob
-            logits = self.joint(audio_output.unsqueeze(1), label_output.unsqueeze(1))  # (batch, 1, num_vocabs)
+            logits = self.joint(audio_output, label_output)  # (batch, 1, num_vocabs)
             log_probs = F.log_softmax(logits, dim=-1)
             
             # Lấy token có xác suất cao nhất
-            preds = log_probs.argmax(dim=-1).squeeze(1)  # (batch)
+            preds = log_probs.argmax(dim=-1)  # (batch)
             
             # Thêm token vào chuỗi dự đoán
             y_hats.append(preds)
