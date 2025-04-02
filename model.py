@@ -75,58 +75,62 @@ class TransformerTransducer(nn.Module):
 
         return output
     
-    # BeamSearch Decode
-    # @torch.no_grad()
-    # def decode(self, audio_outputs: Tensor, max_lens: int, beam_size: int = 3) -> Tensor:
-    #     """
-    #     Thực hiện Beam Search decode trên output của audio_encoder.
-    #     Args:
-    #         audio_outputs (Tensor): Đầu ra của audio_encoder, shape (batch, T, feat_dim)
-    #         max_lens (int): Số bước thời gian (frame) tối đa để decode (thường = số frame của audio_outputs).
-    #         beam_size (int): Beam width cho beam search.
-    #     Returns:
-    #         y_hats (Tensor): Kết quả beam search (tensor chứa chuỗi token kết quả cho mỗi phần tử batch).
-    #     """
-    #     # Khởi tạo beam search decoder từ OpenSpeech
-    #     beam_search = BeamSearchTransformerTransducer(
-    #         joint=self.joint,
-    #         decoder=self.label_encoder,
-    #         beam_size=beam_size,
-    #         blank_id=self.blank_id  # ID của token <blank>
-    #     )
-    #     # Thực hiện beam search decoding
-    #     y_hats = beam_search.forward(audio_outputs, max_lens)  # trả về Tensor (batch, U) chứa các token dự đoán
-    #     return y_hats
-
-    # @torch.no_grad()
-    # def recognize(self, inputs: Tensor, inputs_lens: Tensor, beam_size: int = 3) -> Tensor:
-    #     """
-    #     Chạy audio_encoder rồi beam search để lấy kết quả nhận dạng.
-    #     """
-    #     audio_outputs = self.audio_encoder(inputs, inputs_lens)        # shape (batch, T, D)
-    #     max_lens = audio_outputs.size(1)  # số frame đầu ra encoder
-    #     return self.decode(audio_outputs, max_lens, beam_size=beam_size)
-
     @torch.no_grad()
     def decode(self, audio_outputs: Tensor, max_lens: int) -> Tensor:
         batch = audio_outputs.size(0)
         y_hats = list()
+        eos_id = self.label_encoder.eos_id  # Lấy id của <eos>
 
+        # Khởi tạo targets với <sos>
         targets = torch.LongTensor([self.label_encoder.sos_id] * batch)
         if torch.cuda.is_available():
             targets = targets.cuda()
 
         for i in range(max_lens):
-            label_output = self.label_encoder(targets, None)
-            label_output = label_output.squeeze(1)
-            audio_output = audio_outputs[:, i, :]
-            output = self.joint(audio_output, label_output)
-            targets = output.max(1)[1]
-            y_hats.append(targets)
+            label_output = self.label_encoder(targets, None)  # (batch, 1, model_dim)
+            label_output = label_output.squeeze(1)  # (batch, model_dim)
+            audio_output = audio_outputs[:, i, :]  # (batch, model_dim)
+            
+            # Tính log-prob
+            logits = self.joint(audio_output.unsqueeze(1), label_output.unsqueeze(1))  # (batch, 1, num_vocabs)
+            log_probs = F.log_softmax(logits, dim=-1)
+            
+            # Lấy token có xác suất cao nhất
+            preds = log_probs.argmax(dim=-1).squeeze(1)  # (batch)
+            
+            # Thêm token vào chuỗi dự đoán
+            y_hats.append(preds)
+            
+            # Cập nhật targets: thay thế bằng token dự đoán (không dùng teacher forcing)
+            targets = preds
+            
+            # Kiểm tra xem tất cả các phần tử trong batch đã gặp <eos> chưa
+            if (preds == eos_id).all():
+                break
+        
+        y_hats = torch.stack(y_hats, dim=1)  # (batch, seq_len)
+        return y_hats
 
-        y_hats = torch.stack(y_hats, dim=1)
+    # @torch.no_grad()
+    # def decode(self, audio_outputs: Tensor, max_lens: int) -> Tensor:
+    #     batch = audio_outputs.size(0)
+    #     y_hats = list()
 
-        return y_hats  # (B, T)
+    #     targets = torch.LongTensor([self.label_encoder.sos_id] * batch)
+    #     if torch.cuda.is_available():
+    #         targets = targets.cuda()
+
+    #     for i in range(max_lens):
+    #         label_output = self.label_encoder(targets, None)
+    #         label_output = label_output.squeeze(1)
+    #         audio_output = audio_outputs[:, i, :]
+    #         output = self.joint(audio_output, label_output)
+    #         targets = output.max(1)[1]
+    #         y_hats.append(targets)
+
+    #     y_hats = torch.stack(y_hats, dim=1)
+
+    #     return y_hats  # (B, T)
 
     @torch.no_grad()
     def recognize(self, inputs: Tensor, inputs_lens: Tensor) -> Tensor:
