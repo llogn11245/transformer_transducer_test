@@ -45,7 +45,7 @@ class LabelEncoder(nn.Module):
             pad_id: int = 0,
             sos_id: int = 1,
             eos_id: int = 2,
-            word2index = "C:\\paper\\T-T\\vocab_folder\\word2index.json"
+            word2index = "word2index.json"
     ) -> None:
         super(LabelEncoder, self).__init__()
         self.device = device
@@ -57,11 +57,11 @@ class LabelEncoder(nn.Module):
         self.sos_id = sos_id
         self.eos_id = eos_id
 
-        with open(word2index, 'r', encoding='utf-8') as file:
-            self.word2index = json.load(file)
-            self.index2word = {v: k for k, v in self.word2index.items()}
+        # with open(word2index, 'r', encoding='utf-8') as file:
+        #     self.word2index = json.load(file)
+        #     self.index2word = {v: k for k, v in self.word2index.items()}
             
-        self.blank_id = self.word2index.get('<blank>', None)
+        # self.blank_id = self.word2index.get('<blank>', None)
         self.encoder_layers = nn.ModuleList(
             [EncoderLayer(model_dim, ff_dim, num_heads, dropout) for _ in range(num_layers)]
         )
