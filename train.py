@@ -114,14 +114,14 @@ def main():
                               targets_lens=target_lens
                               )
 
-            print("===================")
-            print(f"\nLogits shape: {log_probs.shape}")
-            print(f"\nTargets shape: {targets[:, :-1].contiguous().shape}")
-            print(f"\nTargets: {targets[:, :-1].to(torch.int32).contiguous()}")
-            print(f"\nLogit Length (input length) shape: {input_lens.shape}")
-            print(f"\nLogit Length (input length): {input_lens}")
-            print(f"\nTarget length - 1: {target_lens - 1}")
-            print(f"\nTarget length shape: {target_lens.shape}")
+            # print("===================")
+            # print(f"\nLogits shape: {log_probs.shape}")
+            # print(f"\nTargets shape: {targets[:, :-1].contiguous().shape}")
+            # print(f"\nTargets: {targets[:, :-1].to(torch.int32).contiguous()}")
+            # print(f"\nLogit Length (input length) shape: {input_lens.shape}")
+            # print(f"\nLogit Length (input length): {input_lens}")
+            # print(f"\nTarget length - 1: {target_lens - 1}")
+            # print(f"\nTarget length shape: {target_lens.shape}")
             # exit()
             # Tính loss RNNT (loại bỏ token <sos> ở đầu các chuỗi target trước khi tính)
             loss = torchaudio.functional.rnnt_loss(
