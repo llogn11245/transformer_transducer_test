@@ -100,5 +100,6 @@ class LabelEncoder(nn.Module):
 
         for encoder_layer in self.encoder_layers:
             outputs, _ = encoder_layer(outputs, self_attn_mask)
-
+        # print(f"\nLabel Enc shape: {outputs.shape}\n")
+        # print(f"Label Enc : {outputs}\n")
         return outputs

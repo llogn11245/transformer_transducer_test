@@ -70,7 +70,7 @@ class AudioEncoder(nn.Module):
         Returns:
             **outputs** (Tensor): ``(batch, seq_length, dimension)``
         """
-        inputs = inputs.transpose(1, 2)
+        # inputs = inputs.transpose(1, 2)
         seq_len = inputs.size(1)
 
         self_attn_mask = get_attn_pad_mask(inputs, inputs_lens, seq_len)
@@ -80,5 +80,6 @@ class AudioEncoder(nn.Module):
 
         for encoder_layer in self.encoder_layers:
             outputs, _ = encoder_layer(outputs, self_attn_mask)
-
+        # print(f"\nAudio Enc shape: {outputs.shape}\n")
+        # print(f"Audio Enc : {outputs}\n")
         return outputs

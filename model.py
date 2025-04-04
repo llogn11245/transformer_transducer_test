@@ -152,15 +152,18 @@ class JointNet(nn.Module):
 
         output = F.log_softmax(output, dim=-1)
 
+        # print(f"\nJoint Net shape: {output.shape}\n")
+        # print(f"\nJoint Net: {output}")
         return output
-    def forward(self, 
-                enc, 
-                dec
-    ):
-        # enc, dec must both be [B, T, U, C]
-        assert enc.shape == dec.shape, f"Shape mismatch: enc={enc.shape}, dec={dec.shape}"
-        joint = torch.cat((enc, dec), dim=-1)  # [B, T, U, 2C]
-        out = self.forward_layer(joint)
-        out = self.tanh(out)
-        out = self.project_layer(out)
-        return out  # [B, T, U, V]
+    
+    # def forward(self, 
+    #             enc, 
+    #             dec
+    # ):
+    #     # enc, dec must both be [B, T, U, C]
+    #     assert enc.shape == dec.shape, f"Shape mismatch: enc={enc.shape}, dec={dec.shape}"
+    #     joint = torch.cat((enc, dec), dim=-1)  # [B, T, U, 2C]
+    #     out = self.forward_layer(joint)
+    #     out = self.tanh(out)
+    #     out = self.project_layer(out)
+    #     return out  # [B, T, U, V]
