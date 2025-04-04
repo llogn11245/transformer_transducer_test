@@ -1,6 +1,6 @@
-batch_size: 2            # Kích thước mỗi batch huấn luyện  
+batch_size: 2           # Kích thước mỗi batch huấn luyện  
 num_epochs: 10            # Số lượng epoch huấn luyện  
-learning_rate: 0.0001      # Tốc độ học (learning rate)  
+learning_rate: 0.00015      # Tốc độ học (learning rate)  
 sample_rate: 16000        # Tần số lấy mẫu audio (Hz)  
 
 vocab_folder: "C:\\paper\\T-T\\vocab_folder" # Đường dẫn đến file vocab_path, w2i, i2w

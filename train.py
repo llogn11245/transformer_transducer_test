@@ -19,9 +19,15 @@ except ImportError:
         log_probs, targets, in_len, tgt_len, blank=0, reduction='mean'
     )
 
+def get_noam_scheduler(optimizer, model_size, warmup_steps):
+    def lr_lambda(step):
+        step = max(step, 1)
+        return (model_size ** (-0.5)) * min(step ** (-0.5), step * (warmup_steps ** (-1.5)))
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+
 def main():
     # Đọc file cấu hình
-    with open(r"config.yaml", 'r', encoding='utf-8') as f:
+    with open(r"C:\paper\T-T\config.yaml", 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     batch_size = config["batch_size"]
     num_epochs = config["num_epochs"]
@@ -85,6 +91,8 @@ def main():
     
     # Cấu hình optimizer 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.85)
+    scheduler = get_noam_scheduler(optimizer, model_size=512, warmup_steps=1000)
     best_val_loss = float('inf')
     
     # Trainning stage
@@ -116,19 +124,19 @@ def main():
 
             # print("===================")
             # print(f"\nLogits shape: {log_probs.shape}")
-            # print(f"\nTargets shape: {targets[:, :-1].contiguous().shape}")
-            # print(f"\nTargets: {targets[:, :-1].to(torch.int32).contiguous()}")
+            # print(f"\nTargets shape: {targets.contiguous().shape}")
+            # print(f"\nTargets: {targets.to(torch.int32).contiguous()}")
             # print(f"\nLogit Length (input length) shape: {input_lens.shape}")
             # print(f"\nLogit Length (input length): {input_lens}")
-            # print(f"\nTarget length - 1: {target_lens - 1}")
+            # print(f"\nTarget length: {target_lens}")
             # print(f"\nTarget length shape: {target_lens.shape}")
             # exit()
             # Tính loss RNNT (loại bỏ token <sos> ở đầu các chuỗi target trước khi tính)
             loss = torchaudio.functional.rnnt_loss(
                             logits=log_probs,
-                            targets=targets[:, :-1].to(torch.int32).contiguous(),
+                            targets=targets[:, 1:-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
-                            target_lengths=(target_lens - 1).to(torch.int32),
+                            target_lengths=(target_lens - 2).to(torch.int32),
                             reduction='mean', 
                             blank=blank_id
                         )
@@ -140,8 +148,9 @@ def main():
             loss.backward()
             
             # Cắt gradient để tránh gradient bùng nổ (nếu cần)
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+            scheduler.step()
             
             if batch_idx % 5 == 0:
                 print(f"[{datetime.datetime.now()}] Epoch {epoch} - Batch {batch_idx}: Loss = {loss_value:.4f}")
