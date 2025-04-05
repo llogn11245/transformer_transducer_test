@@ -95,9 +95,25 @@ def main():
     scheduler = get_noam_scheduler(optimizer, model_size=512, warmup_steps=1000)
     best_val_loss = float('inf')
     
+    checkpoint_path = ""
+    start_epoch = 1
+
+    if os.path.exists(checkpoint_path):
+        print("Tiếp tục huấn luyện từ checkpoint...")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"] + 1
+        best_val_loss = checkpoint["best_val_loss"]  # Khôi phục best_val_loss
+
+        if "scheduler_state_dict" in checkpoint:  # Khôi phục scheduler nếu có
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+    else: 
+        print(f"Chưa có model huấn luyện từ trước!")
+
     # Trainning stage
     print("**************** Training started... ****************")
-    for epoch in range(1, num_epochs + 1):
+    for epoch in range(start_epoch, num_epochs + 1):
         model.train()
         total_loss = 0.0
         for batch_idx, (inputs, input_lens, targets, target_lens) in enumerate(train_loader, start=1):
@@ -106,13 +122,13 @@ def main():
             targets = targets.to(device)
             target_lens = target_lens.to(device)
 
-            # print(f"\nInputs (Features) shape: {inputs.shape}")
-            # print(f"\nInputs length (Features length) shape: {input_lens.shape}")
-            # print(f"\nInputs length (Features length): {input_lens}")
-            # print(f"\nTargets shape: {targets.shape}")
-            # print(f"\nTargets: {targets}")
-            # print(f"\nTarget length shape: {target_lens.shape}")
-            # print(f"\nTarget length: {target_lens}")
+            print(f"\nInputs (Features) shape: {inputs.shape}")
+            print(f"\nInputs length (Features length) shape: {input_lens.shape}")
+            print(f"\nInputs length (Features length): {input_lens}")
+            print(f"\nTargets shape: {targets.shape}")
+            print(f"\nTargets: {targets}")
+            print(f"\nTarget length shape: {target_lens.shape}")
+            print(f"\nTarget length: {target_lens}")
             # exit()
             optimizer.zero_grad()
             # Forward: đưa qua mô hình để lấy log-prob dự đoán
@@ -122,15 +138,15 @@ def main():
                               targets_lens=target_lens
                               )
 
-            # print("===================")
-            # print(f"\nLogits shape: {log_probs.shape}")
-            # print(f"\nTargets shape: {targets.contiguous().shape}")
-            # print(f"\nTargets: {targets.to(torch.int32).contiguous()}")
-            # print(f"\nLogit Length (input length) shape: {input_lens.shape}")
-            # print(f"\nLogit Length (input length): {input_lens}")
-            # print(f"\nTarget length: {target_lens}")
-            # print(f"\nTarget length shape: {target_lens.shape}")
-            # exit()
+            print("===================")
+            print(f"\nLogits shape: {log_probs.shape}")
+            print(f"\nTargets shape: {targets.contiguous().shape}")
+            print(f"\nTargets: {targets.to(torch.int32).contiguous()}")
+            print(f"\nLogit Length (input length) shape: {input_lens.shape}")
+            print(f"\nLogit Length (input length): {input_lens}")
+            print(f"\nTarget length: {target_lens}")
+            print(f"\nTarget length shape: {target_lens.shape}")
+            exit()
             # Tính loss RNNT (loại bỏ token <sos> ở đầu các chuỗi target trước khi tính)
             loss = torchaudio.functional.rnnt_loss(
                             logits=log_probs,
@@ -148,11 +164,11 @@ def main():
             loss.backward()
             
             # Cắt gradient để tránh gradient bùng nổ (nếu cần)
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
             scheduler.step()
             
-            if batch_idx % 5 == 0:
+            if batch_idx % 10 == 0:
                 print(f"[{datetime.datetime.now()}] Epoch {epoch} - Batch {batch_idx}: Loss = {loss_value:.4f}")
         
         avg_loss = total_loss / len(train_loader)
@@ -177,9 +193,9 @@ def main():
                 
                 loss = torchaudio.functional.rnnt_loss(
                             logits=log_probs,
-                            targets=targets[:, 1:].to(torch.int32).contiguous(),
+                            targets=targets[:, 1:-1].to(torch.int32).contiguous(),
                             logit_lengths=input_lens.to(torch.int32),
-                            target_lengths=(target_lens - 1).to(torch.int32),
+                            target_lengths=(target_lens - 2).to(torch.int32),
                             reduction='mean', 
                             blank=blank_id
                         )
@@ -193,14 +209,18 @@ def main():
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
-                "epoch": epoch
+                "epoch": epoch,
+                "best_val_loss": best_val_loss,  # Thêm dòng này
+                "scheduler_state_dict": scheduler.state_dict()  # Thêm nếu dùng scheduler
             }, "/content/transformer_transducer_test/best_model.pth")
             print(f"*** Saved best model (epoch {epoch}, val_loss={val_loss:.4f}) ***")
         # Luôn lưu checkpoint mới nhất để có thể resume sau nếu cần
         torch.save({
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
-            "epoch": epoch
+            "epoch": epoch,
+            "best_val_loss": best_val_loss,  # Thêm dòng này
+            "scheduler_state_dict": scheduler.state_dict() # Thêm nếu dùng scheduler
         }, "/content/transformer_transducer_test/last_checkpoint.pth")
     
     print("**************** Huấn luyện hoàn tất! ****************")

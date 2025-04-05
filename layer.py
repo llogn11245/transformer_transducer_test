@@ -52,10 +52,13 @@ class EncoderLayer(nn.Module):
             **outputs** (Tensor): ``(batch, seq_length, dimension)``
             **attn_distribution** (Tensor): ``(batch, seq_length, seq_length)``
         """
+        # Multi-head Attention sub-layer
         inputs = self.layer_norm(inputs)
         self_attn_output, attn_distribution = self.self_attention(inputs, inputs, inputs, self_attn_mask)
+        self_attn_output = self.encoder_dropout(self_attn_output)
         self_attn_output += inputs
-
+        
+        # Feed-forward sub-layer
         self_attn_output = self.layer_norm(self_attn_output)
         ff_output = self.feed_forward(self_attn_output)
         output = self.encoder_dropout(ff_output + self_attn_output)

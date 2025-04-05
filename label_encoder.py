@@ -103,9 +103,11 @@ class LabelEncoder(nn.Module):
             embedding_output = self.embedding(inputs).to(self.device) * self.scale
             # print(f"\nembedding_output: {embedding_output}")
             # print(f"\nembedding_output shape: {embedding_output.shape}")
+
             positional_encoding_output = self.positional_encoding(target_lens)
             # print(f"\npositional_encoding_output: {positional_encoding_output}")
             # print(f"\npositional_encoding_output shape: {positional_encoding_output.shape}")
+
             inputs = embedding_output + positional_encoding_output
             # print(f"\ninput after embedding and positional enc: {inputs}")
             # print(f"\ninput after embedding and positional enc shape: {inputs}.shape")
@@ -113,6 +115,7 @@ class LabelEncoder(nn.Module):
             self_attn_mask = get_attn_pad_mask(inputs, inputs_lens, target_lens)
             # print(f"\nself_attn_mask: {self_attn_mask}")
             # print(f"\nself_attn_mask shape: {self_attn_mask.shape}")
+        
         outputs = self.input_dropout(inputs)
 
         for encoder_layer in self.encoder_layers:

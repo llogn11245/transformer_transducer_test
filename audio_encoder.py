@@ -46,6 +46,7 @@ class AudioEncoder(nn.Module):
         self.ff_dim = ff_dim
         self.num_layers = num_layers
         self.num_heads = num_heads
+        # Model Layer
         self.input_dropout = nn.Dropout(p=dropout)
         self.layer_norm = nn.LayerNorm(model_dim)
         self.positional_encoding = PositionalEncoding(model_dim, max_len)
@@ -70,12 +71,29 @@ class AudioEncoder(nn.Module):
         Returns:
             **outputs** (Tensor): ``(batch, seq_length, dimension)``
         """
+        # print("==============================")
         inputs = inputs.transpose(1, 2)
+
+        # print(f"\naudio enc inputs shape: {inputs.shape}")
+
         seq_len = inputs.size(1)
+
+        # print(f"\naudio enc seq_len: {seq_len}")
 
         self_attn_mask = get_attn_pad_mask(inputs, inputs_lens, seq_len)
 
+        # print(f"\nauido enc self_attn_mask shape: {self_attn_mask.shape}")
+        # print(f"\nauido enc self_attn_mask: {self_attn_mask}")
+        # print(f"\nauido enc input_fc shape: {self.input_fc(inputs).shape}")
+        # print(f"\nauido enc input_fc: {self.input_fc(inputs)}")
+        # print(f"\nauido enc positional_encoding shape: {self.positional_encoding(seq_len).shape}")
+        # print(f"\nauido enc positional_encoding: {self.positional_encoding(seq_len)}")
+
         inputs = self.input_fc(inputs) + self.positional_encoding(seq_len)
+
+        # print(f"\nauido enc inputs shape: {inputs.shape}")
+        # print(f"\nauido enc inputs: {inputs}")
+
         outputs = self.input_dropout(inputs)
 
         for encoder_layer in self.encoder_layers:
