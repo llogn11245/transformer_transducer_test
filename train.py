@@ -92,7 +92,7 @@ def main():
     # Cấu hình optimizer 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.85)
-    scheduler = get_noam_scheduler(optimizer, model_size=512, warmup_steps=1000)
+    scheduler = get_noam_scheduler(optimizer, model_size=512, warmup_steps=4000)
     best_val_loss = float('inf')
     
     checkpoint_path = ""
@@ -116,6 +116,8 @@ def main():
     for epoch in range(start_epoch, num_epochs + 1):
         model.train()
         total_loss = 0.0
+        current_lr = scheduler.get_last_lr() 
+        print(f"Epoch {epoch}: Current learning rate: {current_lr}")
         for batch_idx, (inputs, input_lens, targets, target_lens) in enumerate(train_loader, start=1):
             inputs = inputs.to(device)
             input_lens = input_lens.to(device)
